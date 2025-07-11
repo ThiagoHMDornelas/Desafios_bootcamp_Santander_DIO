@@ -1,6 +1,6 @@
 # Repositório dos desafios propostos no Bbootcamp Santander / DIO
 
-## Desafio 01 - Operações de Sistema Bancário
+## Operações de Sistema Bancário
 
 ### Operação de depósito
 Deve ser possível depositar valores positivos para a minha conta bancária. A v1 do projeto trabalha apenas com 1 usuário, dessa forma não precisamos nos preocupar em identificar qual é o número da agência e conta bancária. Todos os depósitos devem ser armazenados em uma variável e exibidos na operação de extrato.
