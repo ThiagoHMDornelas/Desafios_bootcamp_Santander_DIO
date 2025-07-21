@@ -8,6 +8,10 @@ class Cliente:
         self.contas = []
 
     def realizar_transacao(self, conta, transacao):
+        if len(conta.historico.transacoes_do_dia()) >= 2:
+            print(" Transações permitidas por dia excedido.")
+            return
+
         transacao.registrar(conta)
 
     def adicionar_Conta(self, conta):
@@ -30,6 +34,10 @@ class Conta:
         self._cliente = cliente
         self._historico = Historico()
 
+    @classmethod
+    def nova_conta(cls, cliente, numero):
+        return cls(numero, cliente)
+    
     @property
     def saldo(self):
         return self._saldo
@@ -50,12 +58,6 @@ class Conta:
     def historico(self):
         return self._historico
     
-    def saldo():
-        pass
-
-    def nova_conta(cliente, numero):
-        pass
-
     def sacar(self, rlValor):
         rlSaldo = self._saldo
         boSaldoExcedido = rlValor > rlSaldo
@@ -83,13 +85,42 @@ class Conta:
             print("\nERRO! O valor de depósito deve ser maior do que 0(zero).")
             return False
 
-        
+    def saldo():
+        pass
+
+
 class ContaCorrente(Conta):
     def __init__(self, numero, cliente, VlrLimite=500, QtdLimiteSaques=3):
-        self.limite = VlrLimite
-        self.limite_saques = QtdLimiteSaques
+        self._limite = VlrLimite
+        self._limite_saques = QtdLimiteSaques
         super().__init__ (numero, cliente)   
 
+    @classmethod
+    def nova_conta(cls, cliente, numero, limite, limite_saques):
+        return cls(numero, cliente, limite, limite_saques)
+
+    def sacar(self, valor):
+        numero_saques = len(
+            [
+                transacao
+                for transacao in self.historico.transacoes
+                if transacao["tipo"] == Saque.__name__
+            ]
+        )
+
+        excedeu_limite = valor > self._limite
+        excedeu_saques = numero_saques >= self._limite_saques
+
+        if excedeu_limite:
+            print("\nErro! O valor do saque excede o limite. @@@")
+
+        elif excedeu_saques:
+            print("\nErro! Número máximo de saques excedido. @@@")
+        else:
+            return super().sacar(valor)
+
+        return False
+        
     def info_conta(self):
         print(f"""\
             Agência: {self._agencia}
@@ -116,6 +147,24 @@ class Historico:
                 "data": datetime.now().strftime("%d-%m-%Y %H:%M:%s"),
             }
         )
+
+    def gerar_relatorio(self, tipo_transacao=None):
+        for transacao in self._transacoes:
+            if (
+                tipo_transacao is None
+                or transacao["tipo"].lower() == tipo_transacao.lower()
+            ):
+                yield transacao
+
+    def transacoes_do_dia(self):
+        data_atual = datetime.now().date()
+        transacoes = []
+        for transacao in self._transacoes:
+            data_transacao = datetime.strftime(transacao["data"], "%d-%m-%Y %H:%M:%s").date()
+            if data_atual == data_transacao:
+                transacoes.append(transacao)
+
+        return transacoes
 
 
 # Classe igual a do Professor Felipe (DIO). 
@@ -160,6 +209,15 @@ class Deposito(Transacao):
             conta.historico.adicionar_transacao(self)
 
 
+def log_transacao(func):
+    def envelope(*args, **kwargs):
+        resultado = func(*args, **kwargs)
+        print(f"{datetime.now().strftime("%d/%m/%Y %H:%M:%S")}: {func.__name__.upper()}")
+        return resultado
+
+    return envelope
+
+
 menu = """
 
 [d]  Depositar
@@ -172,6 +230,7 @@ menu = """
 
 => """
 
+@log_transacao
 def depositar(rlSaldo, rlVlrDeposito, stExtrato, /):    
     if rlVlrDeposito > 0:
         rlSaldo += rlVlrDeposito
@@ -182,6 +241,7 @@ def depositar(rlSaldo, rlVlrDeposito, stExtrato, /):
 
     return rlSaldo, stExtrato
 
+@log_transacao
 def sacar(*, rlSaldo, rlValor, stExtrato, rlVlrLimitePorSaque, itQtdSaque, itQtdLimiteSaque):
     boSaldoExcedido = rlValor > rlSaldo
     boLimiteSaqueExcedido = rlValor > rlVlrLimitePorSaque
@@ -203,12 +263,14 @@ def sacar(*, rlSaldo, rlValor, stExtrato, rlVlrLimitePorSaque, itQtdSaque, itQtd
 
     return rlSaldo, stExtrato
 
+@log_transacao
 def exibir_extrato(rlSaldo, /, *, stExtrato):
         print("\n================ Extrato ================")
         print("Não foram realizadas movimentações." if not stExtrato else stExtrato)
         print(f"\nSaldo: R$ {rlSaldo:.2f}")
         print("==========================================")
 
+@log_transacao
 def novo_usuario(usuarios):
     stCpf = input("Informe o CPF (apenas números): ")
     usuario = localizar_usuario(stCpf, usuarios)
@@ -225,6 +287,7 @@ def novo_usuario(usuarios):
 
     print("Usuário criado com sucesso!")
 
+@log_transacao
 def nova_conta(stAgencia, stNroConta, usuarios, contas):
     stCpf = input("Informe o CPF do usuário: ")
     usuario = localizar_usuario(stCpf, usuarios)
